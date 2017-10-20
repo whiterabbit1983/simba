@@ -1,6 +1,7 @@
 (defproject simba "0.1.0-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
+  :main simba.core
   :plugins [[cider/cider-nrepl "0.15.1"]]
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

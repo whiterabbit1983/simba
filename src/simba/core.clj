@@ -1,6 +1,5 @@
-(ns simba.core)
+(ns simba.core
+  (:require [simba.commands :refer [run] :rename {run cli-run}]))
 
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+(defn -main [& args]
+  (cli-run println args))
