@@ -1,0 +1,12 @@
+ - email: diwank@kea.cloud
+   name: Diwank Tomer
+   "sqs-urn": "sqs:some-random-sqs-queue"
+   rank: 1
+   capacity: 3
+   hwm: 2
+   teams:
+     - id: sales
+       name: Sales
+   attributes:
+     - key: brand
+       value: wingstop
