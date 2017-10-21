@@ -34,6 +34,8 @@
   (spec/spec ::workers [worker]))
 
 ;; Task schema
+(def assigner (s/or :num st/pos-int? :fn coll?))
+
 (def task
   {:id string?
    :nonce string?
@@ -41,7 +43,7 @@
    (spec/opt :retries) st/pos-int?
    (spec/opt :timeout) st/pos-int?
    :payload [key-value]
-   :assigner list?})
+   :assigner assigner})
 
 (def task-schema
   (spec/spec ::worker worker))
