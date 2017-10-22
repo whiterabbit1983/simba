@@ -1,7 +1,8 @@
 (ns simba.schema
   (:require [spec-tools.data-spec :as spec]
             [spec-tools.spec :as st]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [simba.utils :as u]))
 
 ;; Timestamp
 (def timestamp st/pos-int?)
@@ -34,7 +35,10 @@
   (spec/spec ::workers [worker]))
 
 ;; Task schema
-(def assigner (s/or :num st/pos-int? :fn coll?))
+(def assigner
+  (s/or
+   :num st/pos-int?
+   :fn (s/and coll? u/valid-function?)))
 
 (def task
   {:id string?
