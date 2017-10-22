@@ -12,6 +12,9 @@
    ["-w" "--worker-definition FILE_PATH" "Worker definition yaml file"
     :parse-fn str
     :validate [required-string "Worker description file required"]]
+   ["-s" "--secret SECRET" "hmac secret"
+    :parse-fn str
+    :validate [required-string "hmac secret required"]]
    ["-n" "--sns-topic SNS_URN" "SNS topic URN for publishing backpressure and task state change updates"
     :default nil
     :default-desc "<SNS URN>"]
