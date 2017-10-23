@@ -35,17 +35,13 @@
         available-workers (state/get-available workers)
         available? (count available-workers)
 
-        assigner-valid? (utils/valid-function? assigner)
-        selected (and assigner-valid? (exec assigner available-workers))
+        selected (exec assigner available-workers)
         out-queue (and selected (:sqs-urn selected))
 
         verified? (utils/verify-task task secret)]
 
     (if-not verified?
       (error "Task could not be verified"))
-
-    (if-not assigner-valid?
-      (error "Invalid assigner"))
 
     (if-not (and available? selected)
       failed-task

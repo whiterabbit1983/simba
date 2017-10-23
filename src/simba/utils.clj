@@ -1,23 +1,32 @@
 (ns simba.utils
   (:refer-clojure :exclude [load])
-  (:require [clojure.set :refer [subset?]]
-            [buddy.core.mac :as mac]
+  (:require [buddy.core.mac :as mac]
             [buddy.core.codecs :as codecs]
-            [plumbing.core :as u]
+            [pinpointer.core :as p]
+            [plumbing.core :as plumbing]
+            [clojure.spec.alpha :as spec]
             [yaml.core :as yaml]
-            [simba.constants :as c]))
+
+            [simba.schema :as schema]))
 
 (defn load-worker-def [filepath]
   (->
    (yaml/from-file filepath)
-   (u/keywordize-map)))
+   (plumbing/keywordize-map)))
 
-(defn valid-function? [f]
-  (let [flat-f (flatten f)
-        f-syms (set (filter symbol? flat-f))
-        valid? (subset? f-syms c/allowed-symbols)]
+(defn valid-worker-def? [workers]
+  (let [valid? (spec/valid? schema/workers-schema workers)]
 
-    (and (not (nil? f)) valid?)))
+    (if-not valid?
+      (println (p/pinpoint schema/workers-schema workers))
+      valid?)))
+
+(defn valid-task? [task]
+  (let [valid? (spec/valid? schema/task-schema task)]
+
+    (if-not valid?
+      (println (p/pinpoint schema/task-schema task))
+      valid?)))
 
 (defn verify-task [task secret]
   (let [nonce (:nonce task)

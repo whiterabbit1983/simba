@@ -2,7 +2,9 @@
   (:require [spec-tools.data-spec :as spec]
             [spec-tools.spec :as st]
             [clojure.spec.alpha :as s]
-            [simba.utils :as u]))
+            [clojure.set :refer [subset?]]
+
+            [simba.constants :as constants]))
 
 ;; Timestamp
 (def timestamp st/pos-int?)
@@ -34,11 +36,19 @@
 (def workers-schema
   (spec/spec ::workers [worker]))
 
+;; Valid assigner
+(defn valid-assigner? [f]
+  (let [flat-f (flatten f)
+        f-syms (set (filter symbol? flat-f))
+        valid? (subset? f-syms constants/allowed-symbols)]
+
+    (and (not (nil? f)) valid?)))
+
 ;; Task schema
 (def assigner
   (s/or
    :num st/pos-int?
-   :fn (s/and coll? u/valid-function?)))
+   :fn (s/and coll? valid-assigner?)))
 
 (def task
   {:id string?

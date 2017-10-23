@@ -8,6 +8,7 @@
                  [com.cemerick/bandalore "0.0.6"]
                  [amazonica "0.3.113"]
                  [buddy/buddy-core "1.4.0"]
+                 [cheshire "5.8.0"]
                  [com.climate/squeedo "0.2.1"]
                  [digest "1.4.6"]
                  [org.clojure/tools.cli "0.3.5"]

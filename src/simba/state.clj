@@ -23,7 +23,7 @@
     (if-not all-found?
       (error "Worker queues not found"))
 
-    (compact (map-indexed
+    (remove nil? (->> workers (map-indexed
      (fn [i worker]
        (let [current (current-state i)
              capacity (:capacity worker)
@@ -34,4 +34,4 @@
          (and available?
               (assoc worker
                 :current current
-                :above-hwm? above-hwm?))))))))
+                :above-hwm? above-hwm?)))))))))
