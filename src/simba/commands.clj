@@ -48,7 +48,7 @@
   (println msg)
   (System/exit status))
 
-(defn run [start & args]
+(defn run [start args]
   (let [{:keys [action options exit-message ok?]} (validate-args args)]
 
     (if exit-message
