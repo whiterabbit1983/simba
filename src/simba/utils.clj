@@ -18,6 +18,7 @@
    (yaml/from-file filepath)
    (plumbing/keywordize-map)))
 
+
 (defn valid-worker-def? [workers]
   (let [valid? (spec/valid? schema/workers-schema workers)]
 
@@ -25,12 +26,14 @@
       (println (p/pinpoint schema/workers-schema workers))
       valid?)))
 
+
 (defn valid-task? [task]
   (let [valid? (spec/valid? schema/task-schema task)]
 
     (if-not valid?
       (println (p/pinpoint schema/task-schema task))
       valid?)))
+
 
 (defn verify-task [task secret]
   (let [nonce (:nonce task)
@@ -41,6 +44,7 @@
 
     (mac/verify raw-str nonce-decoded mac-params)))
 
+
 (defn get-region [region-str]
 
   (->> (-> (str/upper-case region-str)
@@ -48,3 +52,10 @@
 
        Regions/valueOf
        Region/getRegion))
+
+
+(defn before-shutdown [f & args]
+
+  (.addShutdownHook
+   (Runtime/getRuntime)
+   (Thread. (fn [] (apply f args)))))

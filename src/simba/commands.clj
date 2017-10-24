@@ -1,6 +1,11 @@
 (ns simba.commands
   (:require [clojure.string :as string]
-            [clojure.tools.cli :refer [parse-opts]]))
+            [clojure.tools.cli :refer [parse-opts]]
+
+            [com.climate.squeedo.sqs-consumer
+             :refer [stop-consumer]]
+
+            [simba.utils :as utils]))
 
 (defn required-string [s]
   (< 0 (count s)))
@@ -64,10 +69,18 @@
   (System/exit status))
 
 (defn run [start args]
-  (let [{:keys [action options exit-message ok?]} (validate-args args)]
+  (let [result (validate-args args)
+        {:keys [action options exit-message ok?]} result
+        refresh (:refresh-interval options)]
 
     (if exit-message
       (exit (if ok? 0 1) exit-message)
 
       (case action
-        "start" (start options)))))
+        "start"
+        (do
+          (let [consumer (start options)]
+            (utils/before-shutdown stop-consumer consumer)
+
+            ;; Wait for tasks
+            (while true (Thread/sleep (* refresh 1000)))))))))
