@@ -9,15 +9,19 @@
   [["-i" "--input-queue SQS_URN" "Input SQS URN"
     :parse-fn str
     :validate [required-string "Input sqs urn required"]]
+
    ["-w" "--worker-definition FILE_PATH" "Worker definition yaml file"
     :parse-fn str
     :validate [required-string "Worker description file required"]]
+
    ["-s" "--secret SECRET" "hmac secret"
     :parse-fn str
     :validate [required-string "hmac secret required"]]
+
    ["-n" "--sns-topic SNS_URN" "SNS topic URN for publishing backpressure and task state change updates"
     :default nil
     :default-desc "<SNS URN>"]
+
    ["-v" "--verbose"]
    ["-h" "--help"]])
 
@@ -25,6 +29,7 @@
   (->> ["Simba -- SQS based task router that handles backpressure automatically"
         ""
         "Options:"
+
         options-summary]
        (string/join \newline)))
 
@@ -33,7 +38,9 @@
        (string/join \newline errors)))
 
 (defn validate-args [args]
-  (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
+  (let [parse-result (parse-opts args cli-options)
+        {:keys [options arguments errors summary]} parse-result]
+
     (cond
      (:help options)  ;; => Print options summary
      {:exit-message (usage summary) :ok? true}

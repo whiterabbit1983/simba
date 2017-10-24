@@ -21,13 +21,12 @@
 
 (defn process-task [task opts]
 
-  (let [workers (:workers opts)
-        secret (:secret opts)
-        assigner (:assigner task)
-        payload (:payload task)
-        retries (:retries task)
-        timeout (:timeout task)
+  (let [{:keys [workers secret input-queue]} opts
+        {:keys [assigner payload retries timeout]} task
 
+        dl-queue (str input-queue "-failed")
+
+        retries-exhausted? (< retries 0)
         failed-task (assoc task
                       :nack timeout
                       :retries (dec retries))
@@ -35,7 +34,8 @@
         available-workers (state/get-available workers)
         available? (count available-workers)
 
-        selected (exec assigner available-workers)
+        selected-idx (exec assigner available-workers)
+        selected (available-workers selected-idx)
         out-queue (and selected (:sqs-urn selected))
 
         verified? (utils/verify-task task secret)]
@@ -43,10 +43,17 @@
     (if-not verified?
       (error "Task could not be verified"))
 
-    (if-not (and available? selected)
-      failed-task
+    (cond
+     retries-exhausted?
+     (do
+       (state/dispatch dl-queue task)
+       task)
 
-      ;; all good? enqueue task.
-      (do
-        (state/dispatch out-queue payload)
-        (assoc task :status "completed")))))
+     (not available?)
+     failed-task
+
+     ;; all good? enqueue task.
+     (and available? selected)
+     (do
+       (state/dispatch out-queue payload)
+       (assoc task :status "completed")))))
