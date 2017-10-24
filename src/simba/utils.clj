@@ -1,13 +1,17 @@
 (ns simba.utils
   (:refer-clojure :exclude [load])
-  (:require [buddy.core.mac :as mac]
+  (:require [clojure.string :as str]
+            [clojure.spec.alpha :as spec]
+            [buddy.core.mac :as mac]
             [buddy.core.codecs :as codecs]
             [pinpointer.core :as p]
             [plumbing.core :as plumbing]
-            [clojure.spec.alpha :as spec]
             [yaml.core :as yaml]
 
-            [simba.schema :as schema]))
+            [simba.schema :as schema])
+
+  (:import  [com.amazonaws.regions Region Regions]))
+
 
 (defn load-worker-def [filepath]
   (->
@@ -36,3 +40,11 @@
         mac-params {:key secret :alg :hmac-sha256}]
 
     (mac/verify raw-str nonce-decoded mac-params)))
+
+(defn get-region [region-str]
+
+  (->> (-> (str/upper-case region-str)
+           (str/replace "-" "_"))
+
+       Regions/valueOf
+       Region/getRegion))

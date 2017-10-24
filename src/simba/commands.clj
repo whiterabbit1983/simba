@@ -18,6 +18,14 @@
     :parse-fn str
     :validate [required-string "hmac secret required"]]
 
+   ["-f" "--refresh-interval SECONDS" "Polling interval in seconds"
+    :parse-fn #(Double/parseDouble %)
+    :default 5]
+
+   ["-r" "--aws-region REGION" "AWS region for sqs"
+    :parse-fn str
+    :default "us-east-1"]
+
    ["-n" "--sns-topic SNS_URN" "SNS topic URN for publishing backpressure and task state change updates"
     :default nil
     :default-desc "<SNS URN>"]

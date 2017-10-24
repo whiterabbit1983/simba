@@ -6,9 +6,8 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0-beta2"]
                  [amazonica "0.3.113"]
+                 [com.cemerick/bandalore "0.0.6"]
                  [buddy/buddy-core "1.4.0"]
-                 ;; [cheshire "5.8.0"]
-                 ;; [clj-http "3.7.0"]
                  [com.climate/squeedo "0.2.1"]
                  [org.clojure/tools.cli "0.3.5"]
                  [prismatic/plumbing "0.5.4"]

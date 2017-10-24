@@ -2,6 +2,7 @@
   (:require [clojure.core.async :refer [put!]]
 
             [amazonica.aws.sqs :as sqs]
+            [cemerick.bandalore :as bandalore]
             [com.climate.squeedo.sqs-consumer
              :refer [start-consumer]]
             [hara.common.error :refer [error]]
@@ -9,14 +10,17 @@
             [simba.executor :refer [process-task]]
             [simba.utils :as utils]))
 
+
 (defn start [opts]
 
   (let [worker-def-file (:worker-definition opts)
         workers (utils/load-worker-def worker-def-file)
         valid-def? (utils/valid-worker-def? workers)
 
+        aws-region (utils/get-region (:aws-region opts))
         input-queue-urn (:input-queue opts)
         input-queue (sqs/find-queue input-queue-urn)
+        client (bandalore/create-client)
 
         opts' (assoc opts :workers workers)]
 
@@ -27,6 +31,8 @@
       (error "No sqs queue found for input"))
 
     ;; Opts ok. Start consumer
+    (.setRegion client aws-region)
+
     (start-consumer
      input-queue-urn
 
@@ -34,4 +40,6 @@
        (if-not (utils/valid-task? task)
          (error "Invalid task")
 
-         (put! done-chan (process-task task opts')))))))
+         (put! done-chan (process-task task opts'))))
+
+     :client client)))
