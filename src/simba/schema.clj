@@ -25,7 +25,7 @@
    :email string?
    :sqs-urn string?
    (spec/opt :rank) st/pos-int?
-   (spec/opt :capacity) st/pos-int?
+   (spec/opt :capacity) integer?
    (spec/opt :hwm) st/pos-int?
    (spec/opt :teams) [team]
    (spec/opt :attributes) [key-value]})
@@ -47,7 +47,7 @@
 ;; Task schema
 (def assigner
   (s/or
-   :num st/pos-int?
+   :num integer?
    :fn (s/and coll? valid-assigner?)))
 
 (def task
@@ -60,4 +60,4 @@
    :assigner assigner})
 
 (def task-schema
-  (spec/spec ::worker worker))
+  (spec/spec ::task task))

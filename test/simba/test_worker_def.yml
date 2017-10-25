@@ -1,6 +1,6 @@
  - email: diwank@kea.cloud
    name: Diwank Tomer
-   "sqs-urn": "ladygaga-loves-bhaskar.fifo"
+   "sqs-urn": "test123"
    rank: 1
    capacity: 3
    hwm: 2

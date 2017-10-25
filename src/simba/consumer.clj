@@ -1,5 +1,6 @@
 (ns simba.consumer
   (:require [clojure.core.async :refer [put!]]
+            [clojure.edn :as edn]
 
             [amazonica.aws.sqs :as sqs]
             [cemerick.bandalore :as bandalore]
@@ -36,10 +37,13 @@
     (start-consumer
      input-queue-urn
 
-     (fn [task done-chan]
-       (if-not (utils/valid-task? task)
-         (error "Invalid task")
+     (fn [task-msg done-chan]
+       (let [task-body (:body task-msg)
+             task (edn/read-string task-body)]
 
-         (put! done-chan (process-task task opts'))))
+         (if-not (utils/valid-task? task)
+           (error "Invalid task")
+
+           (put! done-chan (process-task task opts')))))
 
      :client client)))

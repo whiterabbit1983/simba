@@ -34,7 +34,11 @@
         available-workers (state/get-available workers)
         available? (count available-workers)
 
-        selected-idx (exec assigner available-workers)
+        integer-assigner? (integer? assigner)
+        selected-idx (if integer-assigner?
+                       assigner
+                       (exec assigner available-workers))
+
         selected (available-workers selected-idx)
         out-queue (and selected (:sqs-urn selected))
 
