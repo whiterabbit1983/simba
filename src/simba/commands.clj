@@ -4,6 +4,7 @@
 
             [com.climate.squeedo.sqs-consumer
              :refer [stop-consumer]]
+            [taoensso.timbre :as log]
 
             [simba.utils :as utils]))
 
@@ -71,7 +72,11 @@
 (defn run [start args]
   (let [result (validate-args args)
         {:keys [action options exit-message ok?]} result
+        verbose? (:verbose options)
         refresh (:refresh-interval options)]
+
+    (log/set-level!
+     (if verbose? :debug :warn))
 
     (if exit-message
       (exit (if ok? 0 1) exit-message)
@@ -79,8 +84,12 @@
       (case action
         "start"
         (do
+          (log/info "Starting consumer")
           (let [consumer (start options)]
             (utils/before-shutdown stop-consumer consumer)
 
             ;; Wait for tasks
-            (while true (Thread/sleep (* refresh 1000)))))))))
+            (while true
+              (do
+                (log/debug "Sleeping for" refresh "seconds")
+                (Thread/sleep (* refresh 1000))))))))))

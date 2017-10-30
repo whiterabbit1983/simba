@@ -1,6 +1,7 @@
 (ns simba.state
   (:require [amazonica.aws.sqs :as sqs]
-            [hara.common.error :refer [error]]))
+            [hara.common.error :refer [error]]
+            [taoensso.timbre :as log]))
 
 (defn dispatch [q msg]
   (-> q
@@ -21,16 +22,19 @@
         current-state (and all-found? (map get-capacity qs))]
 
     (if-not all-found?
-      (error "Worker queues not found"))
+      (do
+        (log/error "One or more worker queues not found")
+        (error "Worker queues not found")))
 
     (remove nil? (->> workers (map-indexed
      (fn [i worker]
-       (let [current (current-state i)
+       (let [current (get current-state i)
              capacity (:capacity worker)
              hwm (:hwm worker)
              above-hwm? (> current hwm)
              available? (> capacity current)]
 
+         (log/info "Getting current state")
          (and available?
               (assoc worker
                 :current current

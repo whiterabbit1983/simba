@@ -1,7 +1,11 @@
 (ns simba.executor
-  (:require [hara.expression.form :refer [form-fn]]
+  (:require [clojure.core.async :refer [go >! put!]]
+
+            [hara.expression.form :refer [form-fn]]
             [hara.function.args :refer [arg-check op]]
             [hara.common.error :refer [error suppress]]
+
+            [taoensso.timbre :as log]
 
             [simba.state :as state]
             [simba.utils :as utils]))
@@ -13,11 +17,14 @@
         correct-args? (arg-check fn' args-len)]
 
     (if-not correct-args?
-      (error (Exception. "Function accepts incorrect number of args")))
+      (do
+        (log/error "Incorrect function arity")
+        (error (Exception. "Function accepts incorrect number of args"))))
 
     ;; all good? proceed.
+    (log/info "Executing assigner")
     (suppress (apply fn' args)
-              (fn [e] (println (.getMessage e))))))
+              (fn [e] (log/error (.getMessage e))))))
 
 (defn process-task [task opts]
 
@@ -45,19 +52,28 @@
         verified? (utils/verify-task task secret)]
 
     (if-not verified?
-      (error "Task could not be verified"))
+      (do
+        (log/error "Task could not be verified")
+        (error "Task could not be verified")))
 
     (cond
      retries-exhausted?
      (do
+       (log/warn "Task retries exhausted, sent to dlq")
        (state/dispatch dl-queue task)
        task)
 
      (not available?)
-     failed-task
+     (do
+       (log/warn "No worker available, re-queuing with timeout")
+       failed-task)
 
      ;; all good? enqueue task.
      (and available? selected)
      (do
+       (log/info "Worker matched! Dispatching")
        (state/dispatch out-queue payload)
-       (assoc task :status "completed")))))
+       (assoc task :status "completed"))
+
+     :else
+     (log/warn "Processing failed"))))

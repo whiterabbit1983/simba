@@ -30,6 +30,14 @@
    (spec/opt :teams) [team]
    (spec/opt :attributes) [key-value]})
 
+(def worker-defaults
+  {:name ""
+   :rank 1
+   :capacity 1
+   :hwm 100000
+   :teams []
+   :attributes []})
+
 (def worker-schema
   (spec/spec ::worker worker))
 
@@ -58,6 +66,10 @@
    (spec/opt :timeout) st/pos-int?
    :payload [key-value]
    :assigner assigner})
+
+(def task-defaults
+  {:retries 3
+   :timeout (* 15 60)})
 
 (def task-schema
   (spec/spec ::task task))
