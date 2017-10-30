@@ -12,7 +12,12 @@
   (sqs/get-queue-attributes q ["All"]))
 
 (defn get-capacity [q]
-  (-> q get-attrs :ApproximateNumberOfMessages))
+  (let [attrs (q get-attrs)
+        key :ApproximateNumberOfMessages
+        capacity (key q)]
+
+    (log/debug "Capacity: " (str capacity))
+    capacity))
 
 (defn get-available [workers]
 

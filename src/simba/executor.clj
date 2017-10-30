@@ -46,7 +46,7 @@
                        assigner
                        (exec assigner available-workers))
 
-        selected (available-workers selected-idx)
+        selected (get available-workers selected-idx)
         out-queue (and selected (:sqs-urn selected))
 
         verified? (utils/verify-task task secret)]
