@@ -1,15 +1,12 @@
 (ns simba.consumer
   (:require [clojure.core.async :refer [go >! put!]]
             [clojure.edn :as edn]
-
             [amazonica.aws.sqs :as sqs]
             [cemerick.bandalore :as bandalore]
             [com.climate.squeedo.sqs-consumer
              :refer [start-consumer]]
-            [hara.common.error :refer [error]]
-
             [taoensso.timbre :as log]
-
+            [hara.common.error :refer [error]]
             [simba.executor :refer [process-task]]
             [simba.schema :refer [task-defaults worker-defaults]]
             [simba.utils :as utils]))
@@ -30,14 +27,10 @@
         opts' (assoc opts :workers workers)]
 
     (if-not valid-def?
-      (do
-        (log/error "Invalid worker definition file")
-        (error "Invalid worker definition file")))
+      (error "Invalid worker definition file"))
 
     (if-not input-queue
-      (do
-        (log/error "No sqs queue found for input")
-        (error "No sqs queue found for input")))
+      (error "No sqs queue found for input"))
 
     ;; Opts ok. Start consumer
     (log/info "Setting region")
@@ -58,9 +51,7 @@
           (log/info "Task received")
 
           (if-not (utils/valid-task? task)
-            (do
-              (log/error "Invalid task")
-              (error "Invalid task")))
+            (error "Invalid task"))
 
           (log/info "Processing task...")
           (>! done-chan (process-task task opts')))))
