@@ -8,21 +8,18 @@
 
             [simba.utils :as utils]))
 
-(defn required-string [s]
-  (< 0 (count s)))
-
 (def cli-options
   [["-i" "--input-queue SQS_URN" "Input SQS URN"
     :parse-fn str
-    :validate [required-string "Input sqs urn required"]]
+    :missing "Input sqs urn required"]
 
    ["-w" "--worker-definition FILE_PATH" "Worker definition yaml file"
     :parse-fn str
-    :validate [required-string "Worker description file required"]]
+    :missing "Worker description file required"]
 
    ["-s" "--secret SECRET" "hmac secret"
-    :parse-fn str
-    :validate [required-string "hmac secret required"]]
+    :parse-fn str 
+    :missing "hmac secret required"]
 
    ["-f" "--refresh-interval SECONDS" "Polling interval in seconds"
     :parse-fn #(Double/parseDouble %)
@@ -74,7 +71,6 @@
         {:keys [action options exit-message ok?]} result
         verbose? (:verbose options)
         refresh (:refresh-interval options)]
-
     (log/set-level!
      (if verbose? :debug :warn))
 
