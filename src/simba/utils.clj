@@ -2,12 +2,11 @@
   (:refer-clojure :exclude [load])
   (:require [clojure.string :as str]
             [clojure.spec.alpha :as spec]
+            [clojure.walk :refer [keywordize-keys]]
             [buddy.core.mac :as mac]
             [buddy.core.codecs :as codecs]
             [pinpointer.core :as p]
-            [plumbing.core :as plumbing]
             [yaml.core :as yaml]
-
             [simba.schema :as schema])
 
   (:import  [com.amazonaws.regions Region Regions]))
@@ -16,7 +15,7 @@
 (defn load-worker-def [filepath]
   (->
    (yaml/from-file filepath)
-   (plumbing/keywordize-map)))
+   (keywordize-keys)))
 
 
 (defn valid-worker-def? [workers]
