@@ -1,5 +1,5 @@
 (ns simba.consumer
-  (:require [clojure.core.async :refer [go >! put!]]
+  (:require [clojure.core.async :refer [go >! put! <!!]]
             [clojure.edn :as edn]
             [amazonica.aws.sqs :as sqs]
             [cemerick.bandalore :as bandalore]
@@ -25,7 +25,6 @@
         client (bandalore/create-client)
 
         opts' (assoc opts :workers workers)]
-
     (if-not valid-def?
       (error "Invalid worker definition file"))
 
@@ -39,21 +38,28 @@
     (log/info "Starting consumer")
 
     (start-consumer
-     input-queue-urn
+       input-queue-urn
+       ;; TODO: refactor try...catch stuff in a macro
+       (fn [task-msg done-chan]
+         (let [ret-chan (go
+                          (try (let [task-body (:body task-msg)
+                                     task-edn (edn/read-string task-body)
+                                     validated-task (if (utils/valid-task? task-edn) task-edn {})
+                                     task (merge task-defaults validated-task)]
 
-     (fn [task-msg done-chan]
+                                 (log/info "Task received")
 
-       (go
-        (let [task-body (:body task-msg)
-              task-edn (edn/read-string task-body)
-              task (merge task-defaults task-edn)]
+                                 (if-not (utils/valid-task? task)
+                                   (error (str "Invalid task " task)))
 
-          (log/info "Task received")
+                                 (log/info "Processing task...")
+                                 (>! done-chan (process-task task opts')))
+                               (catch Throwable e e)))
+               ret-val (<!! ret-chan)]           
+           (if-not (instance? Throwable ret-val)
+             ret-val
+             (do
+               (.printStackTrace ret-val)
+               (log/error (.getMessage ret-val))))))
 
-          (if-not (utils/valid-task? task)
-            (error "Invalid task"))
-
-          (log/info "Processing task...")
-          (>! done-chan (process-task task opts')))))
-
-     :client client)))
+       :client client)))
