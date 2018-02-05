@@ -7,4 +7,8 @@
 (defn -main [& args]
   (try
     (cli-run start args)
-    (catch Exception e (log/error (.getMessage e)))))
+    (catch Throwable e (log/error (.getMessage e)))))
+
+
+;; (defn -main [& args]
+;;     (cli-run start args))
