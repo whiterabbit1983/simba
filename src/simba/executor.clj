@@ -17,9 +17,7 @@
         correct-args? (arg-check fn' args-len)]
 
     (if-not correct-args?
-      (do
-        (log/error "Incorrect function arity")
-        (error (Exception. "Function accepts incorrect number of args"))))
+      (error (Exception. "Function accepts incorrect number of args")))
 
     ;; all good? proceed.
     (log/info "Executing assigner")
@@ -48,7 +46,6 @@
 
         selected (get available-workers selected-idx)
         out-queue (and selected (:sqs-urn selected))
-
         verified? (utils/verify-task task secret)]
 
     (if-not verified?
