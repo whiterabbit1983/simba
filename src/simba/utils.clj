@@ -39,7 +39,7 @@
         nonce-decoded (codecs/hex->bytes nonce)
         raw-task (dissoc task :nonce)
         raw-str (pr-str raw-task)
-        mac-params {:key secret :alg :hmac-sha256}]
+        mac-params {:key secret :alg :hmac+sha256}]
 
     (mac/verify raw-str nonce-decoded mac-params)))
 
