@@ -27,9 +27,7 @@
         current-state (and all-found? (map get-capacity qs))]
 
     (if-not all-found?
-      (do
-        (log/error "One or more worker queues not found")
-        (error "Worker queues not found")))
+      (error "Worker queues not found"))
 
     (remove nil? (->> workers (map-indexed
      (fn [i worker]
