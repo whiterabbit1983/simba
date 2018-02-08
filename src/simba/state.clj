@@ -14,10 +14,14 @@
 (defn get-capacity [q]
   (let [attrs (get-attrs q)
         key :ApproximateNumberOfMessages
-        capacity (read-string (key attrs))]
-
-    (log/debug "Capacity: " (str capacity))
-    capacity))
+        capacity (key attrs)]
+  (log/debug "Capacity: " capacity)
+  (try
+    (read-string capacity)
+    (catch Throwable e
+      (do
+        (log/warn (str q ": capacity value could not be converted to integer"))
+        0)))))
 
 (defn get-available [workers]
 
