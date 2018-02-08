@@ -5,43 +5,36 @@
             [clojure.walk :refer [keywordize-keys]]
             [buddy.core.mac :as mac]
             [buddy.core.codecs :as codecs]
+            [taoensso.timbre :as log]
             [pinpointer.core :as p]
+            [hara.common.error :refer [error]]
             [yaml.core :as yaml]
             [simba.schema :as schema])
 
   (:import  [com.amazonaws.regions Region Regions]))
 
 
-(defn load-worker-def [filepath]
+(defn yaml->map [filepath]
+  "Load YAML file and convert it to a map"
   (->
    (yaml/from-file filepath)
    (keywordize-keys)))
 
 
-(defn valid-worker-def? [workers]
-  (let [valid? (spec/valid? schema/workers-schema workers)]
-
-    (if-not valid?
-      (println (p/pinpoint schema/workers-schema workers))
-      valid?)))
-
-
-(defn valid-task? [task]
-  (let [valid? (spec/valid? schema/task-schema task)]
-
-    (if-not valid?
-      (println (p/pinpoint schema/task-schema task))
-      valid?)))
-
-
-(defn verify-task [task secret]
+(defn verify-task [task secret & {:keys [silent] :or {silent true}}]
   (let [nonce (:nonce task)
-        nonce-decoded (codecs/hex->bytes nonce)
         raw-task (dissoc task :nonce)
         raw-str (pr-str raw-task)
-        mac-params {:key secret :alg :hmac+sha256}]
-
-    (mac/verify raw-str nonce-decoded mac-params)))
+        mac-params {:key secret :alg :hmac+sha256}
+        err-msg (str "Task " task " does not contain :nonce key")]
+    (if (not (nil? nonce))
+      (mac/verify raw-str (codecs/hex->bytes nonce) mac-params)
+      (do
+        (if silent
+          (do
+            (log/error err-msg)
+            false)
+          (error err-msg))))))
 
 
 (defn get-region [region-str]
