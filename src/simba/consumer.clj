@@ -10,7 +10,8 @@
             [pinpointer.core :as p]
             [hara.common.error :refer [error]]
             [simba.executor :refer [process-task]]
-            [simba.schema :refer [task-defaults worker-defaults workers-schema]]
+            [simba.schema :refer [task-defaults worker-defaults
+                                  workers-schema task-schema]]
             [simba.utils :as utils]))
 
 
@@ -19,7 +20,7 @@
   (let [worker-def-file (:worker-definition opts)
         workers-edn (utils/yaml->map worker-def-file)
         workers (map #(merge worker-defaults %) workers-edn)
-        valid-def? (spec/valid? schema/workers-schema workers)
+        valid-def? (spec/valid? workers-schema workers)
         aws-region (utils/get-region (:aws-region opts))
         input-queue-urn (:input-queue opts)
         input-queue (sqs/find-queue input-queue-urn)
@@ -27,7 +28,7 @@
         opts' (assoc opts :workers workers)]
     (if-not valid-def?
       (do
-        (log/info (p/pinpoint schema/workers-schema workers))
+        (log/info (p/pinpoint workers-schema workers))
         (error "Invalid worker definition file")))
 
     (if-not input-queue
@@ -46,14 +47,14 @@
          (let [ret-chan (go
                           (try (let [task-body (:body task-msg)
                                      task-edn (edn/read-string task-body)
-                                     task-valid? (spec/valid? schema/task-schema task-edn)
+                                     task-valid? (spec/valid? task-schema task-edn)
                                      validated-task (if (task-valid?) task-edn {})
                                      task (merge task-defaults validated-task)]
 
                                  (log/info "Task received")
 
                                  (if-not task-valid?
-                                   (log/info (p/pinpoint schema/task-schema task))
+                                   (log/info (p/pinpoint task-schema task))
                                    (error (str "Invalid task " task)))
 
                                  (log/info "Processing task...")
