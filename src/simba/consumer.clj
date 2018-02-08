@@ -1,38 +1,40 @@
 (ns simba.consumer
   (:require [clojure.core.async :refer [go >! put! <!!]]
+            [clojure.spec.alpha :as spec]
             [clojure.edn :as edn]
             [amazonica.aws.sqs :as sqs]
             [cemerick.bandalore :as bandalore]
             [com.climate.squeedo.sqs-consumer
              :refer [start-consumer]]
             [taoensso.timbre :as log]
+            [pinpointer.core :as p]
             [hara.common.error :refer [error]]
             [simba.executor :refer [process-task]]
-            [simba.schema :refer [task-defaults worker-defaults]]
+            [simba.schema :refer [task-defaults worker-defaults workers-schema]]
             [simba.utils :as utils]))
 
 
 (defn start [opts]
 
   (let [worker-def-file (:worker-definition opts)
-        workers-edn (utils/load-worker-def worker-def-file)
+        workers-edn (utils/yaml->map worker-def-file)
         workers (map #(merge worker-defaults %) workers-edn)
-        valid-def? (utils/valid-worker-def? workers)
-
+        valid-def? (spec/valid? schema/workers-schema workers)
         aws-region (utils/get-region (:aws-region opts))
         input-queue-urn (:input-queue opts)
         input-queue (sqs/find-queue input-queue-urn)
         client (bandalore/create-client)
-
         opts' (assoc opts :workers workers)]
     (if-not valid-def?
-      (error "Invalid worker definition file"))
+      (do
+        (log/info (p/pinpoint schema/workers-schema workers))
+        (error "Invalid worker definition file")))
 
     (if-not input-queue
       (error "No sqs queue found for input"))
 
     ;; Opts ok. Start consumer
-    (log/info "Setting region")
+    (log/info (str "Setting region to " aws-region))
     (.setRegion client aws-region)
 
     (log/info "Starting consumer")
@@ -44,12 +46,14 @@
          (let [ret-chan (go
                           (try (let [task-body (:body task-msg)
                                      task-edn (edn/read-string task-body)
-                                     validated-task (if (utils/valid-task? task-edn) task-edn {})
+                                     task-valid? (spec/valid? schema/task-schema task-edn)
+                                     validated-task (if (task-valid?) task-edn {})
                                      task (merge task-defaults validated-task)]
 
                                  (log/info "Task received")
 
-                                 (if-not (utils/valid-task? task)
+                                 (if-not task-valid?
+                                   (log/info (p/pinpoint schema/task-schema task))
                                    (error (str "Invalid task " task)))
 
                                  (log/info "Processing task...")
