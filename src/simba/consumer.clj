@@ -54,8 +54,9 @@
                                  (log/info "Task received")
 
                                  (if-not task-valid?
-                                   (log/info (p/pinpoint task-schema task))
-                                   (error (str "Invalid task " task)))
+                                   (do
+                                     (log/info (p/pinpoint task-schema task))
+                                     (error (str "Invalid task " task))))
 
                                  (log/info "Processing task...")
                                  (>! done-chan (process-task task opts')))
