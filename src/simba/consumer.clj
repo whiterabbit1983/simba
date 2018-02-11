@@ -48,7 +48,7 @@
                           (try (let [task-body (:body task-msg)
                                      task-edn (edn/read-string task-body)
                                      task-valid? (spec/valid? task-schema task-edn)
-                                     validated-task (if (task-valid?) task-edn {})
+                                     validated-task (if task-valid? task-edn {})
                                      task (merge task-defaults validated-task)]
 
                                  (log/info "Task received")
