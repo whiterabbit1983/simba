@@ -42,7 +42,7 @@
                       :retries (dec retries))
 
         available-workers (state/get-available workers)
-        available? (count available-workers)
+        available? (> (count available-workers) 0)
 
         integer-assigner? (integer? assigner)
         selected-idx (if integer-assigner?
@@ -54,9 +54,7 @@
         verified? (utils/verify-task task secret)]
 
     (if-not verified?
-      (do
-        (log/error "Task could not be verified")
-        (error "Task could not be verified")))
+      (error "Task could not be verified"))
 
     (cond
      retries-exhausted?
