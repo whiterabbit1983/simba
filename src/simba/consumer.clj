@@ -1,68 +1,71 @@
 (ns simba.consumer
-  (:require [clojure.core.async :refer [go >! put!]]
+  (:require [clojure.core.async :refer [go >! put! <!!]]
+            [clojure.spec.alpha :as spec]
             [clojure.edn :as edn]
-
             [amazonica.aws.sqs :as sqs]
             [cemerick.bandalore :as bandalore]
             [com.climate.squeedo.sqs-consumer
              :refer [start-consumer]]
-            [hara.common.error :refer [error]]
-
             [taoensso.timbre :as log]
-
+            [pinpointer.core :as p]
+            [hara.common.error :refer [error]]
             [simba.executor :refer [process-task]]
-            [simba.schema :refer [task-defaults worker-defaults]]
+            [simba.schema :refer [task-defaults worker-defaults
+                                  workers-schema task-schema]]
             [simba.utils :as utils]))
 
 
 (defn start [opts]
 
   (let [worker-def-file (:worker-definition opts)
-        workers-edn (utils/load-worker-def worker-def-file)
+        workers-edn (utils/yaml->map worker-def-file)
         workers (map #(merge worker-defaults %) workers-edn)
-        valid-def? (utils/valid-worker-def? workers)
-
+        valid-def? (spec/valid? workers-schema workers)
         aws-region (utils/get-region (:aws-region opts))
         input-queue-urn (:input-queue opts)
         input-queue (sqs/find-queue input-queue-urn)
         client (bandalore/create-client)
-
         opts' (assoc opts :workers workers)]
-
     (if-not valid-def?
       (do
-        (log/error "Invalid worker definition file")
+        (log/info (p/pinpoint workers-schema workers))
         (error "Invalid worker definition file")))
 
     (if-not input-queue
-      (do
-        (log/error "No sqs queue found for input")
-        (error "No sqs queue found for input")))
+      (error "No sqs queue found for input"))
 
     ;; Opts ok. Start consumer
-    (log/info "Setting region")
+    (log/info (str "Setting region to " aws-region))
     (.setRegion client aws-region)
 
     (log/info "Starting consumer")
 
     (start-consumer
-     input-queue-urn
+       input-queue-urn
+       ;; TODO: refactor try...catch stuff in a macro
+       (fn [task-msg done-chan]
+         (let [ret-chan (go
+                          (try (let [task-body (:body task-msg)
+                                     task-edn (edn/read-string task-body)
+                                     task-valid? (spec/valid? task-schema task-edn)
+                                     validated-task (if task-valid? task-edn {})
+                                     task (merge task-defaults validated-task)]
 
-     (fn [task-msg done-chan]
+                                 (log/info "Task received")
 
-       (go
-        (let [task-body (:body task-msg)
-              task-edn (edn/read-string task-body)
-              task (merge task-defaults task-edn)]
+                                 (if-not task-valid?
+                                   (do
+                                     (log/info (p/pinpoint task-schema task))
+                                     (error (str "Invalid task " task))))
 
-          (log/info "Task received")
+                                 (log/info "Processing task...")
+                                 (>! done-chan (process-task task opts')))
+                               (catch Throwable e e)))
+               ret-val (<!! ret-chan)]           
+           (if-not (instance? Throwable ret-val)
+             ret-val
+             (do
+               (.printStackTrace ret-val)
+               (log/error (.getMessage ret-val))))))
 
-          (if-not (utils/valid-task? task)
-            (do
-              (log/error "Invalid task")
-              (error "Invalid task")))
-
-          (log/info "Processing task...")
-          (>! done-chan (process-task task opts')))))
-
-     :client client)))
+       :client client)))

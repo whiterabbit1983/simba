@@ -1,12 +1,10 @@
 (ns simba.executor
-  (:require [clojure.core.async :refer [go >! put!]]
-
+  (:require [clojure.spec.alpha :as s]
+            [clojure.core.async :refer [go >! put!]]
             [hara.expression.form :refer [form-fn]]
             [hara.function.args :refer [arg-check op]]
             [hara.common.error :refer [error suppress]]
-
             [taoensso.timbre :as log]
-
             [simba.state :as state]
             [simba.utils :as utils]))
 
@@ -14,20 +12,25 @@
 
   (let [fn' (form-fn fn-form)
         args-len (count args)
-        correct-args? (arg-check fn' args-len)]
+        correct-args? (suppress (arg-check fn' args-len))]
 
     (if-not correct-args?
-      (do
-        (log/error "Incorrect function arity")
-        (error (Exception. "Function accepts incorrect number of args"))))
+      (error "Function accepts incorrect number of args"))
 
     ;; all good? proceed.
     (log/info "Executing assigner")
     (suppress (apply fn' args)
               (fn [e] (log/error (.getMessage e))))))
 
-(defn process-task [task opts]
 
+;; specs to validate process-task's arguments
+(s/def ::task-arg (s/keys :req-un [::assigner ::payload ::retries ::timeout]))
+(s/def ::opts-arg (s/keys :req-un [::workers ::secret ::input-queue]))
+
+
+(defn process-task [task opts]
+  {:pre [(s/valid? ::task-arg task) (s/valid? ::opts-arg opts)]}  
+  "Process a task"
   (let [{:keys [workers secret input-queue]} opts
         {:keys [assigner payload retries timeout]} task
 
@@ -39,7 +42,7 @@
                       :retries (dec retries))
 
         available-workers (state/get-available workers)
-        available? (count available-workers)
+        available? (> (count available-workers) 0)
 
         integer-assigner? (integer? assigner)
         selected-idx (if integer-assigner?
@@ -48,13 +51,10 @@
 
         selected (get available-workers selected-idx)
         out-queue (and selected (:sqs-urn selected))
-
         verified? (utils/verify-task task secret)]
 
     (if-not verified?
-      (do
-        (log/error "Task could not be verified")
-        (error "Task could not be verified")))
+      (error "Task could not be verified"))
 
     (cond
      retries-exhausted?

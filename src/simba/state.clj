@@ -12,35 +12,44 @@
   (sqs/get-queue-attributes q ["All"]))
 
 (defn get-capacity [q]
-  (let [attrs (q get-attrs)
+  (let [attrs (get-attrs q)
         key :ApproximateNumberOfMessages
-        capacity (key q)]
-
-    (log/debug "Capacity: " (str capacity))
-    capacity))
+        capacity (key attrs)]
+  (log/debug "Capacity: " capacity)
+  (try
+    (read-string capacity)
+    (catch Throwable e
+      (do
+        (log/warn (str q ": capacity value could not be converted to integer"))
+        0)))))
 
 (defn get-available [workers]
-
+  "Return a vector of available workers"
   (let [q-urns (map :sqs-urn workers)
-        qs (map sqs/find-queue q-urns)
-        all-found? (empty? (filter nil? qs))
-        current-state (and all-found? (map get-capacity qs))]
+        qs (map #(try
+                   (sqs/find-queue %)
+                   (catch Throwable e nil)) q-urns)
+        current-state (into [] (->>
+                                qs
+                                (filter identity)
+                                (map get-capacity)))]
 
-    (if-not all-found?
-      (do
-        (log/error "One or more worker queues not found")
-        (error "Worker queues not found")))
+    (if (empty? current-state)
+      (error "Worker queues not found"))
 
-    (remove nil? (->> workers (map-indexed
-     (fn [i worker]
-       (let [current (get current-state i)
-             capacity (:capacity worker)
-             hwm (:hwm worker)
-             above-hwm? (> current hwm)
-             available? (> capacity current)]
+    (into [] (->>
+              workers
+              (map-indexed
+               (fn [i worker]
+                 (let [current (get current-state i)
+                       capacity (or (:capacity worker) 0)
+                       hwm (or (:hwm worker) 0)
+                       above-hwm? (> current hwm)
+                       available? (> capacity current)]
 
-         (log/info "Getting current state")
-         (and available?
-              (assoc worker
-                :current current
-                :above-hwm? above-hwm?)))))))))
+                   (log/info "Getting current state")
+                   (and available?
+                        (assoc worker
+                          :current current
+                          :above-hwm? above-hwm?)))))
+              (filter identity)))))
