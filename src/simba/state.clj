@@ -1,27 +1,32 @@
 (ns simba.state
   (:require [amazonica.aws.sqs :as sqs]
             [hara.common.error :refer [error]]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [simba.activemq :as amq]))
 
 (defn dispatch [q msg]
   (-> q
-      sqs/find-queue
-      (sqs/send-message (pr-str msg))))
+      amq/get-producer
+      (amq/send-message (pr-str msg))))
 
 (defn get-attrs [q]
   (sqs/get-queue-attributes q ["All"]))
 
 (defn get-capacity [q]
-  (let [attrs (get-attrs q)
-        key :ApproximateNumberOfMessages
-        capacity (key attrs)]
-  (log/debug "Capacity: " capacity)
-  (try
-    (read-string capacity)
-    (catch Throwable e
-      (do
-        (log/warn (str q ": capacity value could not be converted to integer"))
-        0)))))
+  ;; stub
+  0)
+
+;; (defn get-capacity [q]
+;;   (let [attrs (get-attrs q)
+;;         key :ApproximateNumberOfMessages
+;;         capacity (key attrs)]
+;;   (log/debug "Capacity: " capacity)
+;;   (try
+;;     (read-string capacity)
+;;     (catch Throwable e
+;;       (do
+;;         (log/warn (str q ": capacity value could not be converted to integer"))
+;;         0)))))
 
 (defn get-available [workers]
   "Return a vector of available workers"
