@@ -59,7 +59,8 @@
                                      (error (str "Invalid task " task))))
 
                                  (log/info "Processing task...")
-                                 (>! done-chan (process-task task opts')))
+                                 (process-task task opts')
+                                 (>! done-chan task-msg))
                                (catch Throwable e e)))
                ret-val (<!! ret-chan)]           
            (if-not (instance? Throwable ret-val)
