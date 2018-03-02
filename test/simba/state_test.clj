@@ -4,15 +4,15 @@
             [simba.state :as +s]))
 
 
-(deftest get-capacity-tests
-  (let [queue-attrs {:ApproximateNumberOfMessages "12"}]
-   (testing "Getting queue capacity"
-     (with-redefs [sqs/get-queue-attributes (fn [q names] queue-attrs)]
-       (is (= (+s/get-capacity "test-queue") 12)))
-     (with-redefs [sqs/get-queue-attributes (fn [q names] (dissoc queue-attrs :ApproximateNumberOfMessages))]
-       (is (= (+s/get-capacity "test-queue") 0)))
-     (with-redefs [sqs/get-queue-attributes (fn [q names] (assoc queue-attrs :ApproximateNumberOfMessages ""))]
-       (is (= (+s/get-capacity "test-queue") 0))))))
+;; (deftest get-capacity-tests
+;;   (let [queue-attrs {:ApproximateNumberOfMessages "12"}]
+;;    (testing "Getting queue capacity"
+;;      (with-redefs [sqs/get-queue-attributes (fn [q names] queue-attrs)]
+;;        (is (= (+s/get-capacity "test-queue") 12)))
+;;      (with-redefs [sqs/get-queue-attributes (fn [q names] (dissoc queue-attrs :ApproximateNumberOfMessages))]
+;;        (is (= (+s/get-capacity "test-queue") 0)))
+;;      (with-redefs [sqs/get-queue-attributes (fn [q names] (assoc queue-attrs :ApproximateNumberOfMessages ""))]
+;;        (is (= (+s/get-capacity "test-queue") 0))))))
 
 
 (deftest get-available-tests
