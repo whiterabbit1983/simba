@@ -20,4 +20,7 @@
                  [org.apache.activemq/activemq-client "5.15.0"]
                  [org.apache.activemq/activemq-pool "5.15.0"]
                  [javax.jms/jms-api "1.1-rev-1"]]
+  :profiles {:dev {:dependencies [[org.apache.activemq/activemq-broker "5.15.0"]
+                                  [org.apache.activemq/activemq-spring "5.15.0"]
+                                  [org.apache.activemq/activemq-kahadb-store "5.15.0"]]}}
   :jvm-opts ^:replace [])
