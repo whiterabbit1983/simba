@@ -50,7 +50,7 @@
                        (exec assigner available-workers))
 
         selected (get available-workers selected-idx)
-        out-queue (and selected (:sqs-urn selected))
+        out-queue (and selected (:queue-name selected))
         verified? (utils/verify-task task secret)]
 
     (if-not verified?
@@ -76,4 +76,6 @@
        (assoc task :status "completed"))
 
      :else
-     (log/warn "Processing failed"))))
+     (do
+       (log/warn "Processing failed")
+       task))))
