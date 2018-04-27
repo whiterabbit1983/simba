@@ -23,7 +23,7 @@
 (def worker
   {(spec/opt :name) string?
    :email string?
-   :sqs-urn string?
+   :queue-name string?
    (spec/opt :rank) st/pos-int?
    (spec/opt :capacity) integer?
    (spec/opt :hwm) st/pos-int?
@@ -73,3 +73,14 @@
 
 (def task-schema
   (spec/spec ::task task))
+
+(defn eos-string?
+  [s]
+  (and (string? s) (= s "EOS")))
+
+(def eos-task
+  {:type eos-string?
+   (spec/opt :status) string?})
+
+(def eos-task-schema
+  (spec/spec ::eos-task eos-task))
