@@ -21,6 +21,19 @@
    (keywordize-keys)))
 
 
+(defn task->map
+  "Converts a payload of the form [{:key \"a\" :value \"b\"}] to a map of the form {:a \"b\"}"
+  [task]
+  (reduce (fn [acc val]
+            (let [key (:key val)]
+              (if-not (nil? key)
+                (assoc acc
+                  (if (string? key) (keyword key) key)
+                  (:value val))
+                acc)))
+          {} task))
+
+
 (defn verify-task [task secret & {:keys [silent] :or {silent true}}]
   (let [nonce (:nonce task)
         raw-task (dissoc task :nonce)
