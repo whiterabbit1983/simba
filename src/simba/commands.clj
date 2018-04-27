@@ -91,7 +91,7 @@
 
     (if exit-message
       (exit (if ok? 0 1) exit-message)
-
+        
       (case action
         "start"
         (do
@@ -99,7 +99,7 @@
           (amq/init-connection
            mq-broker-url :user mq-username :password mq-password
            :max-connections mq-max-connections)
-          (log/info "Starting consumer")
+          (log/info "Starting SQS consumer")
           (let [consumer (start options)]
             (utils/before-shutdown stop-consumer consumer)
 
