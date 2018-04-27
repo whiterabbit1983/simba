@@ -29,46 +29,91 @@
 
 
 (defn- create-connection
-  [endpoint & {:keys [user password max-connections] :or {max-connections 10}}]
-  (let [conn-factory (amq-conn-factory
+  [endpoint & {:keys [user password max-connections use-pool] :or {max-connections 10 use-pool true}}]
+  (let [amq-factory (amq-conn-factory
                       endpoint
                       :user user
-                      :password password)
-        pool (pooled-conn-factory conn-factory :max-connections max-connections)]
+                      :password password)]
     (doto
-      (.createConnection pool)
+      (.createConnection
+       (if use-pool
+         (pooled-conn-factory amq-factory :max-connections max-connections)
+         amq-factory))
       (.start))))
 
 
-(defn send-message
-  "Send message to the queue"
-  [producer msg]
-  (let [prod-msg (.createTextMessage *session* msg)]
-    (.send producer prod-msg)
-    (.close producer)))
+(defprotocol Closeable
+  (close [this]))
+
+
+(defprotocol ProducerProtocol
+  (send-message [this msg]))
+
+
+(defprotocol ConsumerProtocol
+  (receive [this timeout]))
+
+
+(deftype Consumer [consumer]
+  ConsumerProtocol
+  (receive [this timeout]
+    (.getText (.receive (.consumer this) timeout)))
+  Closeable
+  (close [this]
+    (.close (.consumer this))))
+
+
+(deftype Producer [producer]
+  ProducerProtocol
+  (send-message [this msg]
+    (if (nil? *session*)
+      (error "ActiveMQ session not initialized")
+      (do
+        (.send (.producer this) (.createTextMessage *session* msg))
+        this)))
+  Closeable
+  (close [this]
+    (.close (.producer this))))
 
 
 (defn get-producer
   "Create message producer with the given queue name as a destination"
+  [queue & {:keys [delivery-mode] :or {delivery-mode DeliveryMode/NON_PERSISTENT}}]
+  (if (nil? *session*)
+    (error "ActiveMQ session not initialized")
+    (let [dest (.createQueue *session* queue)]
+      (->Producer (doto
+                      (.createProducer *session* dest)
+                      (.setDeliveryMode delivery-mode))))))
+
+
+(defn get-consumer
+  "Create message consumer for a given queue"
   [queue]
   (if (nil? *session*)
-    (error "ActiveMQ connection not initialised")
-    (let [dest (.createQueue *session* queue)]
-      (doto
-          (.createProducer *session* dest)
-          (.setDeliveryMode DeliveryMode/NON_PERSISTENT)))))
+    (error "ActiveMQ session not initialized")
+    (->Consumer (.createConsumer *session* (.createQueue *session* queue)))))
+
+
+(defn create-session
+  "Create new session"
+  [& {:keys [ack-mode] :or {ack-mode Session/CLIENT_ACKNOWLEDGE}}]
+  (if (nil? *connection*)
+    (error "ActiveMQ connection not initialized")
+    (.createSession *connection* false ack-mode)))
 
 
 (defn init-connection
   "Initialize connection to the broker"
-  [endpoint & {:keys [user password max-connections] :or {max-connections 10}}]
+  [endpoint & {:keys [user password max-connections use-pool] :or {max-connections 10 use-pool true}}]
   (let [conn (create-connection
               endpoint
+              :use-pool use-pool
               :user user
               :password password
               :max-connections max-connections)]
     (alter-var-root (var *connection*) (fn [v] conn))
-    (alter-var-root (var *session*) (fn [v] (.createSession conn false Session/AUTO_ACKNOWLEDGE)))))
+    (alter-var-root (var *session*) (fn [v] (create-session)))))
 
 
 (defn close-connection
