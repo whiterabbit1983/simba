@@ -40,3 +40,12 @@
      (is (thrown-with-msg? Exception #"Task .* does not contain :nonce key"
                            (+u/verify-task (dissoc task-1 :nonce) "secret" :silent false)))
      (is (not (+u/verify-task (dissoc task-1 :nonce) "secret" :silent true))))))
+
+
+(deftest task->map
+  (testing "Task payload to map conversion"
+    (is (= (+u/task->map [{:key "a" :value "b"} {:key :c :value 1}]) {:a "b" :c 1}))
+    (is (= (+u/task->map []) {}))
+    (is (= (+u/task->map [{}]) {}))
+    (is (= (+u/task->map [{:key "a" :some-value "b"}]) {:a nil}))
+    (is (= (+u/task->map [{:some-key "a" :some-value "b"}]) {}))))

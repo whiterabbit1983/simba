@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all]
             [amazonica.aws.sqs :as sqs]
             [simba.executor :as +e]
-            [simba.state :as +s]))
+            [simba.state :as +s]
+            [simba.activemq :as +a]))
 
 
 (deftest exec-tests
@@ -16,6 +17,12 @@
 
 (def ^:dynamic *process-task-output* {})
 
+(defn mq-fixture [test-func]
+  (+a/init-connection "vm://localhost?broker.persistent=true")
+  (test-func)
+  (+a/close-connection))
+
+(use-fixtures :each mq-fixture)
 
 (deftest process-task-tests
   (testing "Wrong parameters"
@@ -33,7 +40,7 @@
   (testing "Task not verified"
     (with-redefs [sqs/find-queue (fn [q] q)
                   sqs/get-queue-attributes (fn [q a] {:ApproximateNumberOfMessages "0"})]
-      (let [worker {:sqs-urn "recv-q" :capacity 0}]
+      (let [worker {:queue-name "recv-q" :capacity 0}]
         (is (thrown-with-msg? Exception #"Task could not be verified"
                               (+e/process-task {:id "task1" :nonce "" :created-at 123 :retries 1 :timeout 1 :payload [] :assigner 0}
                                                {:input-queue "q" :secret "secret" :workers [worker]}))))))
@@ -49,7 +56,7 @@
                     :timeout 900
                     :payload [{:key "a" :value "b"}]
                     :assigner 0}
-              worker {:sqs-urn "recv-q" :capacity 0}
+              worker {:queue-name "recv-q" :capacity 0}
               opts {:input-queue "q" :workers [worker] :secret "secret"}]
           (is (and
                (= task (+e/process-task task opts))
@@ -65,8 +72,8 @@
                   :timeout 900
                   :payload [{:key "a" :value "b"}]
                   :assigner 0}
-            worker {:sqs-urn "recv-q" :capacity 0}
-            opts {:input-queue "q" :workers [worker (assoc worker :sqs-urn "recv-q-2")] :secret "secret"}]
+            worker {:queue-name "recv-q" :capacity 0}
+            opts {:input-queue "q" :workers [worker (assoc worker :queue-name "recv-q-2")] :secret "secret"}]
         (is (= (assoc task :nack 900 :retries 0) (+e/process-task task opts))))))
   (testing "Task dispatched successfully"
     (binding [*process-task-output* {}]
@@ -80,7 +87,7 @@
                     :timeout 900
                     :payload [{:key "a" :value "b"}]
                     :assigner 0}
-              worker {:email "w@cc.com" :sqs-urn "recv-q" :capacity 1}
+              worker {:email "w@cc.com" :queue-name "recv-q" :capacity 1}
               opts {:input-queue "q" :workers [worker] :secret "secret"}]
           (is (= (assoc task :status "completed") (+e/process-task task opts)))
           (is (= *process-task-output* {:q "recv-q" :t [{:key "a" :value "b"}]}))))))
@@ -96,6 +103,6 @@
                     :timeout 900
                     :payload [{:key "a" :value "b"}]
                     :assigner 1}
-              worker {:email "w@cc.com" :sqs-urn "recv-q" :capacity 1}
+              worker {:email "w@cc.com" :queue-name "recv-q" :capacity 1}
               opts {:input-queue "q" :workers [worker] :secret "secret"}]
-          (is (nil? (+e/process-task task opts))))))))
+          (is (= (+e/process-task task opts) task)))))))
