@@ -59,10 +59,14 @@
                                      (error (str "Invalid task " task))))
 
                                  (log/info "Processing task...")
-                                 (process-task task opts')
-                                 (>! done-chan task-msg))
-                               (catch Throwable e e)))
-               ret-val (<!! ret-chan)]           
+                                 (let [processed-body (process-task task opts')]
+                                   (-> task-msg
+                                       (assoc :nack (:nack processed-body))
+                                       (assoc :retries (:retries processed-body))
+                                       (assoc :body processed-body)
+                                       (>! done-chan))))
+                               (catch Throwable e (>! done-chan task-msg))))
+               ret-val (<!! ret-chan)]
            (if-not (instance? Throwable ret-val)
              ret-val
              (do
