@@ -51,13 +51,19 @@
 
 
 (defprotocol ConsumerProtocol
-  (receive [this timeout]))
+  (receive [this timeout])
+  (messages-seq [this timeout]))
 
 
 (deftype Consumer [consumer]
   ConsumerProtocol
   (receive [this timeout]
     (.getText (.receive (.consumer this) timeout)))
+  (messages-seq [this timeout]
+    (letfn [(recv []
+              (try (receive this timeout)
+                   (catch NullPointerException e nil)))]
+      (take-while #(not (nil? %)) (repeatedly #(recv)))))
   Closeable
   (close [this]
     (.close (.consumer this))))
