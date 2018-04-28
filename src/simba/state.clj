@@ -19,26 +19,26 @@
          (> (count (:queue-name worker)) 0)]}  
   "Get worker stats: tasks count and online status"
   (binding [amq/*session* (amq/create-session :ack-mode Session/CLIENT_ACKNOWLEDGE)]
-    (let [consumer (amq/get-consumer (:queue-name worker))
-          next-msg (fn [] (try (amq/receive consumer 1000) (catch NullPointerException e nil)))
-          result {:task-count 0 :online? true}]
-      (loop [cnt 0 msg (next-msg) online? true]
-        (if-not msg
-          (assoc result :task-count cnt :online? online?)
-          (recur
-           (+ cnt 1)
-           (next-msg)
-           (->> msg
-                (edn/read-string)
-                (task->map)
-                (spec/valid? eos-task-schema)
-                (not)
-                (and online?))))))))
+    (with-open [consumer (amq/get-consumer (:queue-name worker))]
+      (reduce
+       (fn [acc val] {:task-count (+ (:task-count acc) 1)
+                      :online? (->> val
+                                    (edn/read-string)
+                                    (task->map)
+                                    (spec/valid? eos-task-schema)
+                                    (not)
+                                    (and (:online? acc)))})
+       {:task-count 0 :online? true}
+       (amq/messages-seq consumer 1000)))))
 
 (defn get-available
   [workers]
   "Return a vector of available workers"
-  (let [workers-stats (map get-worker-stats workers)
+  (let [workers-stats (->> workers
+                           (map #(try
+                                   (get-worker-stats %)
+                                   (catch Exception e nil)))
+                           (filter identity))
         ;; TODO: refactor the next two lines!
         current-state (into [] (map #(:task-count %) workers-stats))
         online-state (into [] (map #(:online? %) workers-stats))]
