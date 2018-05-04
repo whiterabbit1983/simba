@@ -3,14 +3,14 @@
             [clojure.edn :as edn]
             [hara.common.error :refer [error]]
             [taoensso.timbre :as log]
-            [simba.activemq :as amq]
+            [simba.rabbitmq :as rmq]
             [simba.schema :refer [eos-task-schema]]
             [simba.utils :refer [task->map]])
   (:import [javax.jms Session]))
 
 (defn dispatch [q msg]
-  (with-open [producer (amq/get-producer q)]
-    (amq/send-message producer (pr-str msg))))
+  (with-open [producer (rmq/get-channel q)]
+    (rmq/send-message producer (pr-str msg))))
 
 (defn get-worker-stats
   [worker]
@@ -18,18 +18,17 @@
          (string? (:queue-name worker))
          (> (count (:queue-name worker)) 0)]}  
   "Get worker stats: tasks count and online status"
-  (binding [amq/*session* (amq/create-session :ack-mode Session/CLIENT_ACKNOWLEDGE)]
-    (with-open [consumer (amq/get-consumer (:queue-name worker))]
-      (reduce
-       (fn [acc val] {:task-count (+ (:task-count acc) 1)
-                      :online? (->> val
-                                    (edn/read-string)
-                                    (task->map)
-                                    (spec/valid? eos-task-schema)
-                                    (not)
-                                    (and (:online? acc)))})
-       {:task-count 0 :online? true}
-       (amq/messages-seq consumer 1000)))))
+  (with-open [consumer (rmq/get-channel (:queue-name worker))]
+    (reduce
+     (fn [acc val] {:task-count (+ (:task-count acc) 1)
+                    :online? (->> val
+                                  (edn/read-string)
+                                  (task->map)
+                                  (spec/valid? eos-task-schema)
+                                  (not)
+                                  (and (:online? acc)))})
+     {:task-count 0 :online? true}
+     (rmq/messages-seq consumer))))
 
 (defn get-available
   [workers]

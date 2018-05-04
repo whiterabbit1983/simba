@@ -19,6 +19,7 @@
                  [pinpointer "0.1.0"]
                  [org.apache.activemq/activemq-client "5.15.0"]
                  [org.apache.activemq/activemq-pool "5.15.0"]
+                 [com.rabbitmq/amqp-client "5.2.0"]
                  [javax.jms/jms-api "1.1-rev-1"]]
   :profiles {:dev {:dependencies [[org.apache.activemq/activemq-broker "5.15.0"]
                                   [org.apache.activemq/activemq-spring "5.15.0"]
