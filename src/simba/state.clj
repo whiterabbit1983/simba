@@ -5,12 +5,17 @@
             [taoensso.timbre :as log]
             [simba.rabbitmq :as rmq]
             [simba.schema :refer [eos-task-schema]]
-            [simba.utils :refer [task->map]])
+            [simba.utils :refer [task->map]]
+            [clj-time.core :as tcore]
+            [clj-time.coerce :as tcoerce])
   (:import [javax.jms Session]))
 
 (defn dispatch [q msg]
   (with-open [producer (rmq/get-channel q)]
-    (rmq/send-message producer (pr-str msg))))
+    (let [timestamp (tcoerce/to-long (tcore/now))
+          labeled-msg (conj msg {:key "timestamp" :value (str timestamp)})]
+      (log/debug (str "Sending message " labeled-msg))
+      (rmq/send-message producer (pr-str labeled-msg)))))
 
 (defn get-worker-stats
   [worker]
@@ -36,7 +41,7 @@
   (let [workers-stats (->> workers
                            (map #(try
                                    (get-worker-stats %)
-                                   (catch Exception e nil)))
+                                   (catch Exception e (log/error (str e)))))
                            (filter identity))
         ;; TODO: refactor the next two lines!
         current-state (into [] (map #(:task-count %) workers-stats))
