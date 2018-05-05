@@ -17,6 +17,7 @@
                  [metosin/spec-tools "0.6.0-SNAPSHOT"]
                  [org.clojure/tools.cli "0.3.5"]
                  [pinpointer "0.1.0"]
+                 [clj-time "0.14.3"]
                  [org.apache.activemq/activemq-client "5.15.0"]
                  [org.apache.activemq/activemq-pool "5.15.0"]
                  [com.rabbitmq/amqp-client "5.2.0"]
