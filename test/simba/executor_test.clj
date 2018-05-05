@@ -1,9 +1,8 @@
 (ns simba.executor-test
   (:require [clojure.test :refer :all]
-            [amazonica.aws.sqs :as sqs]
             [simba.executor :as +e]
             [simba.state :as +s]
-            [simba.activemq :as +a]))
+            [simba.rabbitmq :as +r]))
 
 
 (deftest exec-tests
@@ -16,13 +15,9 @@
 
 
 (def ^:dynamic *process-task-output* {})
+(deftype ChannelMock [] +r/Closeable (close [this] nil))
+(def ch-mock (->ChannelMock))
 
-(defn mq-fixture [test-func]
-  (+a/init-connection "vm://localhost?broker.persistent=true")
-  (test-func)
-  (+a/close-connection))
-
-(use-fixtures :each mq-fixture)
 
 (deftest process-task-tests
   (testing "Wrong parameters"
@@ -38,17 +33,19 @@
     (is (thrown? AssertionError (+e/process-task {:assigner 0 :payload [] :retries 1 :timeout 1}
                                                  {:workers [] :input-queue "q"}))))
   (testing "Task not verified"
-    (with-redefs [sqs/find-queue (fn [q] q)
-                  sqs/get-queue-attributes (fn [q a] {:ApproximateNumberOfMessages "0"})]
+    (with-redefs [+r/get-channel (fn [_] ch-mock)
+                  +r/messages-seq (fn [_] [])
+                  +r/send-message (fn [m] m)]
       (let [worker {:queue-name "recv-q" :capacity 0}]
         (is (thrown-with-msg? Exception #"Task could not be verified"
                               (+e/process-task {:id "task1" :nonce "" :created-at 123 :retries 1 :timeout 1 :payload [] :assigner 0}
                                                {:input-queue "q" :secret "secret" :workers [worker]}))))))
   (testing "Retries exhausted"
     (binding [*process-task-output* {}]
-      (with-redefs [+s/dispatch (fn [q t] (set! *process-task-output* (assoc *process-task-output* :q q :t t)))
-                    sqs/find-queue (fn [q] q)
-                    sqs/get-queue-attributes (fn [q a] {:ApproximateNumberOfMessages "0"})]
+      (with-redefs [+r/get-channel (fn [_] ch-mock)
+                    +r/messages-seq (fn [_] [])
+                    +r/send-message (fn [m] m)
+                    +s/dispatch (fn [q t] (set! *process-task-output* (assoc *process-task-output* :q q :t t)))]
         (let [task {:id "task1"
                     :nonce "554252c0dd3a9b094d3ed69c2690372806088e914ee73c488e87124c50d2fd24"
                     :created-at 123
@@ -62,9 +59,9 @@
                (= task (+e/process-task task opts))
                (= *process-task-output* {:q "q-failed" :t task})))))))
   (testing "No workers available"
-    (with-redefs [sqs/find-queue (fn [q] q)
-                  sqs/get-queue-attributes (fn [q a] {:ApproximateNumberOfMessages "0"})
-                  sqs/send-message (fn [q m] m)]
+    (with-redefs [+r/get-channel (fn [_] ch-mock)
+                  +r/messages-seq (fn [_] [])
+                  +r/send-message (fn [m] m)]
       (let [task {:id "task1"
                   :nonce "b68b72d641f025d0474dccbccf98a0f6bd0c25364ffb9e07f2e335d50b09c7fc"
                   :created-at 123
@@ -77,9 +74,10 @@
         (is (= (assoc task :nack 900 :retries 0) (+e/process-task task opts))))))
   (testing "Task dispatched successfully"
     (binding [*process-task-output* {}]
-      (with-redefs [+s/dispatch (fn [q t] (set! *process-task-output* (assoc *process-task-output* :q q :t t)))
-                    sqs/find-queue (fn [q] q)
-                    sqs/get-queue-attributes (fn [q a] {:ApproximateNumberOfMessages "0"})]
+      (with-redefs [+r/get-channel (fn [_] ch-mock)
+                    +r/messages-seq (fn [_] [])
+                    +r/send-message (fn [m] m)
+                    +s/dispatch (fn [q t] (set! *process-task-output* (assoc *process-task-output* :q q :t t)))]
         (let [task {:id "task1"
                     :nonce "b68b72d641f025d0474dccbccf98a0f6bd0c25364ffb9e07f2e335d50b09c7fc"
                     :created-at 123
@@ -93,9 +91,10 @@
           (is (= *process-task-output* {:q "recv-q" :t [{:key "a" :value "b"}]}))))))
   (testing "Processing failed"
     (binding [*process-task-output* {}]
-      (with-redefs [+s/dispatch (fn [q t] (set! *process-task-output* (assoc *process-task-output* :q q :t t)))
-                    sqs/find-queue (fn [q] q)
-                    sqs/get-queue-attributes (fn [q a] {:ApproximateNumberOfMessages "0"})]
+      (with-redefs [+r/get-channel (fn [_] ch-mock)
+                    +r/messages-seq (fn [_] [])
+                    +r/send-message (fn [m] m)
+                    +s/dispatch (fn [q t] (set! *process-task-output* (assoc *process-task-output* :q q :t t)))]
         (let [task {:id "task1"
                     :nonce "52bacd6dd4456b9bd19205d2d3f21a5569e8c2fe9b2431dd70518e5ff87e8e8e"
                     :created-at 123
