@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [simba.executor :as +e]
             [simba.state :as +s]
+            [simba.settings :as settings]
             [simba.rabbitmq :as +r]))
 
 
@@ -35,7 +36,7 @@
   (testing "Task not verified"
     (with-redefs [+r/get-channel (fn [_] ch-mock)
                   +r/messages-seq (fn [_] [])
-                  +r/send-message (fn [m] m)]
+                  +s/get-worker-stats (fn [_] {:task-count 0 :online? true})]
       (let [worker {:queue-name "recv-q" :capacity 0}]
         (is (thrown-with-msg? Exception #"Task could not be verified"
                               (+e/process-task {:id "task1" :nonce "" :created-at 123 :retries 1 :timeout 1 :payload [] :assigner 0}
@@ -43,7 +44,7 @@
   (testing "Retries exhausted"
     (binding [*process-task-output* {}]
       (with-redefs [+r/get-channel (fn [_] ch-mock)
-                    +r/messages-seq (fn [_] [])
+                    +s/get-worker-stats (fn [_] {:task-count 0 :online? true})
                     +r/send-message (fn [m] m)
                     +s/dispatch (fn [q t] (set! *process-task-output* (assoc *process-task-output* :q q :t t)))]
         (let [task {:id "task1"
@@ -57,10 +58,10 @@
               opts {:input-queue "q" :workers [worker] :secret "secret"}]
           (is (and
                (= task (+e/process-task task opts))
-               (= *process-task-output* {:q "q-failed" :t task})))))))
+               (= *process-task-output* {:q (str settings/task-queue-prefix "q-failed") :t task})))))))
   (testing "No workers available"
     (with-redefs [+r/get-channel (fn [_] ch-mock)
-                  +r/messages-seq (fn [_] [])
+                  +s/get-worker-stats (fn [_] {:task-count 0 :online? true})
                   +r/send-message (fn [m] m)]
       (let [task {:id "task1"
                   :nonce "b68b72d641f025d0474dccbccf98a0f6bd0c25364ffb9e07f2e335d50b09c7fc"
@@ -75,7 +76,7 @@
   (testing "Task dispatched successfully"
     (binding [*process-task-output* {}]
       (with-redefs [+r/get-channel (fn [_] ch-mock)
-                    +r/messages-seq (fn [_] [])
+                    +s/get-worker-stats (fn [_] {:task-count 0 :online? true})
                     +r/send-message (fn [m] m)
                     +s/dispatch (fn [q t] (set! *process-task-output* (assoc *process-task-output* :q q :t t)))]
         (let [task {:id "task1"
@@ -88,11 +89,11 @@
               worker {:email "w@cc.com" :queue-name "recv-q" :capacity 1}
               opts {:input-queue "q" :workers [worker] :secret "secret"}]
           (is (= (assoc task :status "completed") (+e/process-task task opts)))
-          (is (= *process-task-output* {:q "recv-q" :t [{:key "a" :value "b"}]}))))))
+          (is (= *process-task-output* {:q (str settings/task-queue-prefix "recv-q") :t [{:key "a" :value "b"}]}))))))
   (testing "Processing failed"
     (binding [*process-task-output* {}]
       (with-redefs [+r/get-channel (fn [_] ch-mock)
-                    +r/messages-seq (fn [_] [])
+                    +s/get-worker-stats (fn [_] {:task-count 0 :online? true})
                     +r/send-message (fn [m] m)
                     +s/dispatch (fn [q t] (set! *process-task-output* (assoc *process-task-output* :q q :t t)))]
         (let [task {:id "task1"
