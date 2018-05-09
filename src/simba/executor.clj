@@ -6,7 +6,8 @@
             [hara.common.error :refer [error suppress]]
             [taoensso.timbre :as log]
             [simba.state :as state]
-            [simba.utils :as utils]))
+            [simba.utils :as utils]
+            [simba.settings :as +s]))
 
 (defn exec [fn-form & args]
 
@@ -34,7 +35,7 @@
   (let [{:keys [workers secret input-queue]} opts
         {:keys [assigner payload retries timeout]} task
 
-        dl-queue (str input-queue "-failed")
+        dl-queue (str +s/task-queue-prefix input-queue "-failed")
 
         retries-exhausted? (< retries 0)
         failed-task (assoc task
@@ -50,7 +51,7 @@
                        (exec assigner available-workers))
 
         selected (get available-workers selected-idx)
-        out-queue (and selected (:queue-name selected))
+        out-queue (and selected (str +s/task-queue-prefix (:queue-name selected)))
         verified? (utils/verify-task task secret)]
 
     (if-not verified?
