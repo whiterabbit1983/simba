@@ -6,6 +6,7 @@
             [simba.rabbitmq :as rmq]
             [simba.schema :refer [eos-task-schema]]
             [simba.utils :refer [task->map]]
+            [simba.settings :as +s]
             [clj-time.core :as tcore]
             [clj-time.coerce :as tcoerce])
   (:import [javax.jms Session]))
@@ -18,22 +19,15 @@
       (rmq/send-message producer (pr-str labeled-msg)))))
 
 (defn get-worker-stats
+  "Get worker's task count and availability"
   [worker]
   {:pre [(not (nil? (:queue-name worker)))
          (string? (:queue-name worker))
-         (> (count (:queue-name worker)) 0)]}  
-  "Get worker stats: tasks count and online status"
-  (with-open [consumer (rmq/get-channel (:queue-name worker))]
-    (reduce
-     (fn [acc val] {:task-count (+ (:task-count acc) 1)
-                    :online? (->> val
-                                  (edn/read-string)
-                                  (task->map)
-                                  (spec/valid? eos-task-schema)
-                                  (not)
-                                  (and (:online? acc)))})
-     {:task-count 0 :online? true}
-     (rmq/messages-seq consumer))))
+         (> (count (:queue-name worker)) 0)]}
+  (with-open [eos_consumer (rmq/get-channel (str +s/eos-queue-prefix (:queue-name worker)))
+              task_counter (rmq/get-channel (str +s/task-queue-prefix (:queue-name worker)))]
+    {:task-count (rmq/message-count task_counter)
+     :online? (= (rmq/message-count eos_consumer) 0)}))
 
 (defn get-available
   [workers]
