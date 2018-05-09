@@ -24,14 +24,15 @@
 (defprotocol ChannelProtocol
   (receive [this])
   (messages-seq [this])
-  (send-message [this msg]))
+  (send-message [this msg])
+  (message-count [this]))
 
 
 (deftype Channel [channel queue]
   ChannelProtocol
   (receive [this]
     (-> (.channel this)
-        (.basicGet (.queue this) false)
+        (.basicGet (.getQueue (.queue this)) false)
         (.getBody)
         (String.)))
   (messages-seq [this]
@@ -44,8 +45,10 @@
       (error "RabbitMQ connection not initialized")
       (do
         (.confirmSelect (.channel this))
-        (.basicPublish (.channel this) "" (.queue this) persistent (.getBytes msg))
+        (.basicPublish (.channel this) "" (.getQueue (.queue this)) persistent (.getBytes msg))
         this)))
+  (message-count [this]
+    (.getMessageCount (.queue this)))
   Closeable
   (close [this]
     (.close (.channel this))))
@@ -56,8 +59,8 @@
   [queue]
   (if (nil? *connection*)
     (error "RabbitMQ connection not initialized")
-    (let [channel (.createChannel *connection*)]
-      (.queueDeclare channel queue true false false nil)
+    (let [channel (.createChannel *connection*)
+          queue (.queueDeclare channel queue true false false nil)]
       (->Channel channel queue))))
 
 
